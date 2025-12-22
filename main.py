@@ -3,6 +3,10 @@ import asyncio
 import threading
 import requests
 
+import psutil
+import time
+from datetime import timedelta
+
 from flask import Flask, request, render_template
 import discord
 from discord.ext import commands
@@ -46,6 +50,7 @@ VERIFY_URL = (
 @bot.event
 async def on_ready():
     await bot.tree.sync()
+    bot.loop.create_task(status_loop())
     print(f"Logged in as {bot.user}")
 
 # ---- 認証パネル
@@ -184,7 +189,49 @@ async def give_role(user_id: int, role_id: int):
     role = guild.get_role(role_id)
     if role:
         await member.add_roles(role)
+# =====================
+# Bot status
+# =====================
+def format_uptime():
+    boot = psutil.boot_time()
+    up = int(time.time() - boot)
+    return str(timedelta(seconds=up))
 
+def get_status_text(bot: commands.Bot):
+    cpu = psutil.cpu_percent()
+    ram = psutil.virtual_memory().percent
+    disk = psutil.disk_usage("/").percent
+
+    net = psutil.net_io_counters()
+    net_mb = (net.bytes_sent + net.bytes_recv) / 1024 / 1024
+
+    uptime = format_uptime()
+    servers = len(bot.guilds)
+
+    return (
+        f"CPU:{cpu:.1f}% | "
+        f"RAM:{ram:.1f}% | "
+        f"DSK:{disk:.1f}% | "
+        f"NET:{net_mb:.1f}MB | "
+        f"UP:{uptime} | "
+        f"{servers} SRV | @oql87"
+    )
+# ==
+async def status_loop():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        try:
+            text = get_status_text(bot)
+            await bot.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=text
+                )
+            )
+        except Exception as e:
+            print("status update error:", e)
+
+        await asyncio.sleep(60)  # ← 60秒（安全）
 # =====================
 # Run both
 # =====================
