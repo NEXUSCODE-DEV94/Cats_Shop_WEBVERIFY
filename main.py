@@ -192,10 +192,6 @@ async def give_role(user_id: int, role_id: int):
 # =====================
 # Bot status
 # =====================
-def format_uptime():
-    boot = psutil.boot_time()
-    up = int(time.time() - boot)
-    return str(timedelta(seconds=up))
 
 def get_status_text(bot: commands.Bot):
     cpu = psutil.cpu_percent()
@@ -205,7 +201,6 @@ def get_status_text(bot: commands.Bot):
     net = psutil.net_io_counters()
     net_mb = (net.bytes_sent + net.bytes_recv) / 1024 / 1024
 
-    uptime = format_uptime()
     servers = len(bot.guilds)
 
     return (
@@ -213,7 +208,6 @@ def get_status_text(bot: commands.Bot):
         f"RAM:{ram:.1f}% | "
         f"DSK:{disk:.1f}% | "
         f"NET:{net_mb:.1f}MB | "
-        f"UP:{uptime} | "
         f"{servers} SRV | @oql87"
     )
 # ==
