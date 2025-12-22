@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>認証失敗｜Cats Shop | Web Verify</title>
+
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Noto Sans JP", system-ui, sans-serif;
+    }
+
+    .box {
+      text-align: center;
+      width: 420px;
+    }
+
+    .title {
+      font-size: 22px;
+      letter-spacing: 0.2em;
+      margin-bottom: 18px;
+    }
+
+    .line {
+      width: 64px;
+      height: 1px;
+      background: #fff;
+      margin: 0 auto 18px;
+      opacity: 0.7;
+    }
+
+    .desc {
+      font-size: 13px;
+      opacity: 0.75;
+      letter-spacing: 0.08em;
+      line-height: 1.8;
+      margin-bottom: 24px;
+    }
+
+    textarea {
+      width: 100%;
+      background: #000;
+      color: #fff;
+      border: 1px solid #fff;
+      padding: 10px;
+      font-size: 12px;
+      resize: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="box">
+    <div class="title">認証失敗</div>
+    <div class="line"></div>
+    <div class="desc">
+      認証を完了できませんでした —<br>
+      再試行するか、サポートへ参加してください
+    </div>
+
+    <textarea readonly>{{ error_code }}</textarea>
+  </div>
+</body>
+</html>
