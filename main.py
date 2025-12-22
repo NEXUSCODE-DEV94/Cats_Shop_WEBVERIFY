@@ -48,7 +48,7 @@ async def verify_panel(interaction: discord.Interaction):
             url=VERIFY_URL
         )
     )
-    await interaction.response.send_message(embed=embed, view=view)
+    await interaction.followup.send(embed=embed, view=view)
 
 # ===== 救済認証 =====
 @bot.event
