@@ -48,6 +48,7 @@ async def on_ready():
     await bot.tree.sync()
     print(f"Logged in as {bot.user}")
 
+# ---- 認証パネル
 @bot.tree.command(name="認証パネル")
 async def verify_panel(interaction: discord.Interaction):
     await interaction.response.defer(thinking=False)
@@ -70,19 +71,23 @@ async def verify_panel(interaction: discord.Interaction):
 
     await interaction.followup.send(embed=embed, view=view)
 
+# ---- 救済認証
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
         return
     if message.channel.id != SUPPORT_CHANNEL_ID:
         return
+
     if message.content.strip() == "認証お願いします":
         role = message.guild.get_role(SUPPORT_ROLE_ID)
         fail = message.guild.get_role(FAIL_ROLE_ID)
+
         if role:
             await message.author.add_roles(role)
         if fail:
             await message.author.remove_roles(fail)
+
         await message.delete()
         await message.channel.send(
             f"{message.author.mention} 認証しました。",
@@ -163,13 +168,21 @@ def verify():
     )
     return render_template("success.html")
 
+# ---- ロール付与（安全版）
 async def give_role(user_id: int, role_id: int):
     guild = bot.get_guild(GUILD_ID)
     if not guild:
         return
+
     member = guild.get_member(user_id)
+    if not member:
+        try:
+            member = await guild.fetch_member(user_id)
+        except:
+            return
+
     role = guild.get_role(role_id)
-    if member and role:
+    if role:
         await member.add_roles(role)
 
 # =====================
