@@ -2,10 +2,9 @@ import os
 import asyncio
 import threading
 import requests
-
 import psutil
 import time
-from datetime import timedelta
+from datetime import datetime, timezone
 
 from flask import Flask, request, render_template
 import discord
@@ -25,6 +24,7 @@ FAIL_ROLE_ID = int(os.getenv("FAIL_ROLE_ID"))
 SUPPORT_ROLE_ID = int(os.getenv("SUPPORT_ROLE_ID"))
 SUPPORT_CHANNEL_ID = int(os.getenv("SUPPORT_CHANNEL_ID"))
 SUPPORT_INVITE_URL = os.getenv("SUPPORT_INVITE_URL")
+LOG_CHANNEL_ID = int(os.getenv("LOG_CHANNEL_ID"))
 
 RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY")
 RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY")
@@ -47,13 +47,21 @@ VERIFY_URL = (
     "&response_type=code&scope=identify"
 )
 
+def get_client_ip(req):
+    xff = req.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    return req.remote_addr or "unknown"
+
+# =====================
+# Bot Events
+# =====================
 @bot.event
 async def on_ready():
     await bot.tree.sync()
     bot.loop.create_task(status_loop())
     print(f"Logged in as {bot.user}")
 
-# ---- 認証パネル
 @bot.tree.command(name="認証パネル")
 async def verify_panel(interaction: discord.Interaction):
     await interaction.response.defer(thinking=False)
@@ -76,7 +84,6 @@ async def verify_panel(interaction: discord.Interaction):
 
     await interaction.followup.send(embed=embed, view=view)
 
-# ---- 救済認証
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
@@ -155,25 +162,34 @@ def callback():
 def verify():
     recaptcha_token = request.form.get("g-recaptcha-response")
     user_id = int(request.form.get("user_id"))
+    username = request.form.get("username", "unknown")
+    ip = get_client_ip(request)
 
     if not verify_recaptcha(recaptcha_token):
+        asyncio.run_coroutine_threadsafe(
+            send_verify_log(user_id, username, ip, False, "RECAPTCHA_FAILED"),
+            bot.loop
+        )
         asyncio.run_coroutine_threadsafe(
             give_role(user_id, FAIL_ROLE_ID),
             bot.loop
         )
-        return render_template(
-            "fail.html",
-            invite=SUPPORT_INVITE_URL,
-            error="RECAPTCHA_FAILED"
-        )
+        return render_template("fail.html", invite=SUPPORT_INVITE_URL, error="RECAPTCHA_FAILED")
 
+    asyncio.run_coroutine_threadsafe(
+        send_verify_log(user_id, username, ip, True),
+        bot.loop
+    )
     asyncio.run_coroutine_threadsafe(
         give_role(user_id, VERIFY_ROLE_ID),
         bot.loop
     )
+
     return render_template("success.html")
 
-# ---- ロール付与（安全版）
+# =====================
+# Helpers
+# =====================
 async def give_role(user_id: int, role_id: int):
     guild = bot.get_guild(GUILD_ID)
     if not guild:
@@ -189,45 +205,50 @@ async def give_role(user_id: int, role_id: int):
     role = guild.get_role(role_id)
     if role:
         await member.add_roles(role)
-# =====================
-# Bot status
-# =====================
 
-def get_status_text(bot: commands.Bot):
+async def send_verify_log(user_id, username, ip, success, reason=""):
+    channel = bot.get_channel(LOG_CHANNEL_ID)
+    if not channel:
+        return
+
+    embed = discord.Embed(
+        title="認証成功" if success else "認証失敗",
+        color=discord.Color.green() if success else discord.Color.red(),
+        timestamp=datetime.now(timezone.utc)
+    )
+    embed.add_field(name="User", value=f"{username} ({user_id})", inline=False)
+    embed.add_field(name="IP", value=ip, inline=False)
+    if not success:
+        embed.add_field(name="Reason", value=reason, inline=False)
+
+    await channel.send(embed=embed)
+
+# =====================
+# Bot Status
+# =====================
+def get_status_text(bot):
     cpu = psutil.cpu_percent()
     ram = psutil.virtual_memory().percent
     disk = psutil.disk_usage("/").percent
-
     net = psutil.net_io_counters()
     net_mb = (net.bytes_sent + net.bytes_recv) / 1024 / 1024
-
     servers = len(bot.guilds)
 
-    return (
-        f"CPU:{cpu:.1f}% | "
-        f"RAM:{ram:.1f}% | "
-        f"DSK:{disk:.1f}% | "
-        f"NET:{net_mb:.1f}MB | "
-        f"{servers} SRV | @oql87"
-    )
-# ==
+    return f"CPU:{cpu:.1f}% | RAM:{ram:.1f}% | DSK:{disk:.1f}% | NET:{net_mb:.0f}MB | {servers} SRV"
+
 async def status_loop():
     await bot.wait_until_ready()
     while not bot.is_closed():
-        try:
-            text = get_status_text(bot)
-            await bot.change_presence(
-                activity=discord.Activity(
-                    type=discord.ActivityType.watching,
-                    name=text
-                )
+        await bot.change_presence(
+            activity=discord.Activity(
+                type=discord.ActivityType.watching,
+                name=get_status_text(bot)
             )
-        except Exception as e:
-            print("status update error:", e)
+        )
+        await asyncio.sleep(60)
 
-        await asyncio.sleep(60)  # ← 60秒（安全）
 # =====================
-# Run both
+# Run
 # =====================
 def run_bot():
     bot.run(DISCORD_TOKEN)
