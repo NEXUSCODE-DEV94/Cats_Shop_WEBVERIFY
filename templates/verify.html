@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Web Verify</title>
+
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 32px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+  </style>
+
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+  <script>
+    function onCaptchaSuccess() {
+      document.getElementById("verifyForm").submit();
+    }
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Web Verify</h1>
+
+    <form id="verifyForm" action="/verify" method="POST">
+      <input type="hidden" name="user_id" value="{{ user.id }}">
+
+      <div
+        class="g-recaptcha"
+        data-sitekey="{{ site_key }}"
+        data-callback="onCaptchaSuccess">
+      </div>
+    </form>
+  </div>
+</body>
+</html>
