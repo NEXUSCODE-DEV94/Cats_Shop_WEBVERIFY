@@ -245,7 +245,7 @@ async def status_loop():
                 name=get_status_text(bot)
             )
         )
-        await asyncio.sleep(60)
+        await asyncio.sleep(900)
 
 # =====================
 # Run
