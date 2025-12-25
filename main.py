@@ -10,7 +10,7 @@ import discord
 from discord.ext import commands
 
 # =====================
-# ENV（必須）
+# ENV
 # =====================
 def getenv_int(name):
     v = os.getenv(name)
@@ -68,7 +68,6 @@ async def verify_panel(interaction: discord.Interaction):
         description="下のボタンから認証してください。",
         color=discord.Color.dark_grey()
     )
-
     view = discord.ui.View()
     view.add_item(
         discord.ui.Button(
@@ -77,40 +76,29 @@ async def verify_panel(interaction: discord.Interaction):
             url=VERIFY_URL
         )
     )
-
     await interaction.response.send_message(embed=embed, view=view)
-
-@bot.event
-async def on_message(message: discord.Message):
-    if message.author.bot:
-        return
-    if message.channel.id != SUPPORT_CHANNEL_ID:
-        return
-
-    if message.content.strip() == "認証お願いします":
-        role = message.guild.get_role(SUPPORT_ROLE_ID)
-        fail = message.guild.get_role(FAIL_ROLE_ID)
-        if role:
-            await message.author.add_roles(role)
-        if fail:
-            await message.author.remove_roles(fail)
-        await message.delete()
 
 # =====================
 # Flask
 # =====================
 app = Flask(__name__)
 
+def get_client_ip(req):
+    xff = req.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    return req.remote_addr or "unknown"
+
 def verify_recaptcha(token):
     if not token or not RECAPTCHA_SECRET_KEY:
         return False
     r = requests.post(
         "https://www.google.com/recaptcha/api/siteverify",
+        timeout=5,
         data={
             "secret": RECAPTCHA_SECRET_KEY,
             "response": token
-        },
-        timeout=5
+        }
     )
     return bool(r.json().get("success"))
 
@@ -162,27 +150,27 @@ def verify():
     user_id = int(request.form.get("user_id", 0))
     username = request.form.get("username", "unknown")
     recaptcha_token = request.form.get("g-recaptcha-response")
+    ip = get_client_ip(request)
 
     if not verify_recaptcha(recaptcha_token):
         asyncio.run_coroutine_threadsafe(
-            give_role(user_id, FAIL_ROLE_ID),
+            send_verify_log(user_id, username, ip, False, "RECAPTCHA_FAILED"),
             DISCORD_LOOP
         )
         asyncio.run_coroutine_threadsafe(
-            send_verify_log(user_id, username, False, "RECAPTCHA_FAILED"),
+            give_role(user_id, FAIL_ROLE_ID),
             DISCORD_LOOP
         )
         return render_template("fail.html", invite=SUPPORT_INVITE_URL)
 
     asyncio.run_coroutine_threadsafe(
-        give_role(user_id, VERIFY_ROLE_ID),
+        send_verify_log(user_id, username, ip, True),
         DISCORD_LOOP
     )
     asyncio.run_coroutine_threadsafe(
-        send_verify_log(user_id, username, True),
+        give_role(user_id, VERIFY_ROLE_ID),
         DISCORD_LOOP
     )
-
     return render_template("success.html")
 
 # =====================
@@ -200,7 +188,7 @@ async def give_role(user_id, role_id):
     if role:
         await member.add_roles(role)
 
-async def send_verify_log(user_id, username, success, reason=""):
+async def send_verify_log(user_id, username, ip, success, reason=""):
     channel = bot.get_channel(LOG_CHANNEL_ID)
     if not channel:
         return
@@ -210,6 +198,7 @@ async def send_verify_log(user_id, username, success, reason=""):
         timestamp=datetime.now(timezone.utc)
     )
     embed.add_field(name="User", value=f"{username} ({user_id})", inline=False)
+    embed.add_field(name="IP", value=ip, inline=False)
     if not success:
         embed.add_field(name="Reason", value=reason, inline=False)
     await channel.send(embed=embed)
