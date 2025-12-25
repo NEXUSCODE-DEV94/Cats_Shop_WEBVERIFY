@@ -59,7 +59,8 @@
     </div>
 
     <form id="verifyForm" action="/verify" method="POST">
-      <input type="hidden" name="user_id" value="{{ user.id }}">
+    <input type="hidden" name="user_id" value="{{ user_id }}">
+    <input type="hidden" name="username" value="{{ username }}">
       <div class="g-recaptcha"
            data-sitekey="{{ site_key }}"
            data-callback="verified">
