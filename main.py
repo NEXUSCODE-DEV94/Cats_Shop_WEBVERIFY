@@ -3,7 +3,6 @@ import asyncio
 import threading
 import requests
 import psutil
-import time
 from datetime import datetime, timezone
 
 from flask import Flask, request, render_template
@@ -68,7 +67,7 @@ async def verify_panel(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="認証",
-        description="ボタンを押して認証！",
+        description="下のボタンから認証してください。",
         color=discord.Color.dark_grey()
     )
     embed.set_footer(text="Cats Shop🛒 | Web Verify System")
@@ -152,10 +151,14 @@ def callback():
         headers={"Authorization": f"Bearer {access_token}"}
     ).json()
 
+    # 実際の表示名（新仕様）
+    display_name = user.get("global_name") or user.get("username")
+
     return render_template(
         "verify.html",
         site_key=RECAPTCHA_SITE_KEY,
-        user=user
+        user_id=user["id"],
+        username=display_name
     )
 
 @app.route("/verify", methods=["POST"])
@@ -174,7 +177,7 @@ def verify():
             give_role(user_id, FAIL_ROLE_ID),
             bot.loop
         )
-        return render_template("fail.html", invite=SUPPORT_INVITE_URL, error="RECAPTCHA_FAILED")
+        return render_template("fail.html", invite=SUPPORT_INVITE_URL)
 
     asyncio.run_coroutine_threadsafe(
         send_verify_log(user_id, username, ip, True),
@@ -195,12 +198,10 @@ async def give_role(user_id: int, role_id: int):
     if not guild:
         return
 
-    member = guild.get_member(user_id)
-    if not member:
-        try:
-            member = await guild.fetch_member(user_id)
-        except:
-            return
+    try:
+        member = await guild.fetch_member(user_id)
+    except:
+        return
 
     role = guild.get_role(role_id)
     if role:
@@ -230,11 +231,9 @@ def get_status_text(bot):
     cpu = psutil.cpu_percent()
     ram = psutil.virtual_memory().percent
     disk = psutil.disk_usage("/").percent
-    net = psutil.net_io_counters()
-    net_mb = (net.bytes_sent + net.bytes_recv) / 1024 / 1024
     servers = len(bot.guilds)
 
-    return f"CPU:{cpu:.1f}% | RAM:{ram:.1f}% | DSK:{disk:.1f}% | NET:{net_mb:.0f}MB | {servers} SRV"
+    return f"CPU:{cpu:.0f}% | RAM:{ram:.0f}% | DSK:{disk:.0f}% | {servers} SRV"
 
 async def status_loop():
     await bot.wait_until_ready()
@@ -254,5 +253,5 @@ def run_bot():
     bot.run(DISCORD_TOKEN)
 
 if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
+    threading.Thread(target=run_bot, daemon=True).start()
     app.run(host="0.0.0.0", port=PORT)
