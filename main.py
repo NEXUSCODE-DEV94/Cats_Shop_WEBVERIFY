@@ -67,7 +67,6 @@ async def on_ready():
 
 @bot.tree.command(name="認証パネル")
 async def verify_panel(interaction: discord.Interaction):
-    # ★ まず必ずACK（3秒制限回避）
     await interaction.response.defer(ephemeral=False)
 
     embed = discord.Embed(
@@ -75,8 +74,7 @@ async def verify_panel(interaction: discord.Interaction):
         description="ボタンを押して認証！",
         color=discord.Color.dark_grey()
     )
-
-embed.set_footer(text="Cats Shop🛒 | Web Verify System")
+    embed.set_footer(text="Cats Shop🛒 | Web Verify System")
 
     view = discord.ui.View(timeout=None)
     view.add_item(
@@ -87,7 +85,6 @@ embed.set_footer(text="Cats Shop🛒 | Web Verify System")
         )
     )
 
-    # ★ defer後は followup ONLY
     await interaction.followup.send(embed=embed, view=view)
 
 # =====================
