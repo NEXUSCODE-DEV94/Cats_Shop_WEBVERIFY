@@ -67,6 +67,7 @@ async def on_ready():
 
 @bot.tree.command(name="認証パネル")
 async def verify_panel(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=False)
     embed = discord.Embed(
         title="認証",
         description="下のボタンから認証してください。",
@@ -80,7 +81,7 @@ async def verify_panel(interaction: discord.Interaction):
             url=VERIFY_URL
         )
     )
-    await interaction.response.send_message(embed=embed, view=view)
+    await interaction.followup.send(embed=embed, view=view)
 
 # =====================
 # Flask
