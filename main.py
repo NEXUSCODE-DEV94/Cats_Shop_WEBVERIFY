@@ -213,27 +213,6 @@ async def send_verify_log(user_id, username, ip, success, reason=""):
     await channel.send(embed=embed)
 
 # =====================
-# Status（正確版）
-# =====================
-async def status_loop():
-    await bot.wait_until_ready()
-
-    while True:
-        cpu = psutil.cpu_percent(interval=1)
-
-        mem = psutil.virtual_memory()
-        used_gb = mem.used / (1024 ** 3)
-        total_gb = mem.total / (1024 ** 3)
-
-        await bot.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name=f"CPU {cpu:.0f}% | RAM {used_gb:.1f}/{total_gb:.1f}GB"
-            )
-        )
-        await asyncio.sleep(900)
-
-# =====================
 # Run
 # =====================
 def run_bot():
