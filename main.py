@@ -59,12 +59,6 @@ async def on_ready():
     DISCORD_LOOP = asyncio.get_running_loop()
     await bot.tree.sync()
 
-    # CPU測定ウォームアップ（重要）
-    psutil.cpu_percent(interval=None)
-
-    bot.loop.create_task(status_loop())
-    print(f"Logged in as {bot.user}")
-
 @bot.tree.command(name="認証パネル")
 async def verify_panel(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=False)
